@@ -3,19 +3,22 @@ from __future__ import annotations
 
 import sys
 
-from PySide6.QtWidgets import QApplication, QLabel, QMainWindow
+from PySide6.QtWidgets import QApplication
 
-
-class MainWindow(QMainWindow):
-    def __init__(self) -> None:
-        super().__init__()
-        self.setWindowTitle("Just a Calendar")
-        self.resize(960, 640)
-        self.setCentralWidget(QLabel("Just a Calendar — stage 2 placeholder"))
+from .db.connection import connect
+from .db.repositories import EventsRepo, SettingsRepo
+from .paths import db_path
+from .services.events import EventsService
+from .services.palette import PaletteService
+from .ui.main_window import MainWindow
 
 
 def run() -> int:
     app = QApplication.instance() or QApplication(sys.argv)
-    window = MainWindow()
+    app.setApplicationName("Just a Calendar")
+    conn = connect(db_path())
+    events_svc = EventsService(EventsRepo(conn))
+    palette_svc = PaletteService(SettingsRepo(conn))
+    window = MainWindow(events_svc, palette_svc)
     window.show()
     return app.exec()
