@@ -1,0 +1,1 @@
+"""Data entities for Just a Calendar."""
