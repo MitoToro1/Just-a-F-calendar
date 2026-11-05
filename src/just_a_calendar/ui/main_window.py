@@ -21,12 +21,14 @@ from PySide6.QtWidgets import (
 )
 
 from ..services.events import EventsService
+from ..services.free_time import FreeTimeService
 from ..services.palette import PaletteService
 from ..services.parity import ParityService
 from ..services.schedules import SchedulesService
 from ..services.sleep import SleepService
 from .calendar import RoundedCalendar
 from .event_dialog import EventDialog
+from .free_time_dialog import FreeTimeDialog
 from .schedules_dialog import SchedulesDialog
 from .settings_dialog import SettingsDialog
 
@@ -39,6 +41,7 @@ class MainWindow(QMainWindow):
         schedules_service: SchedulesService,
         parity_service: ParityService,
         sleep_service: SleepService,
+        free_time_service: FreeTimeService,
     ) -> None:
         super().__init__()
         self.setWindowTitle("Just a Calendar")
@@ -48,8 +51,10 @@ class MainWindow(QMainWindow):
         self._schedules = schedules_service
         self._parity = parity_service
         self._sleep = sleep_service
+        self._free_time = free_time_service
         self._schedules_dialog = None
         self._settings_dialog = None
+        self._free_time_dialog = None
         self._build_ui()
         self._refresh_events_highlight()
         self._refresh_day_list()
@@ -66,10 +71,12 @@ class MainWindow(QMainWindow):
         self._btn_today = QPushButton("Today")
         self._btn_new = QPushButton("New event...")
         self._btn_schedules = QPushButton("Schedules...")
+        self._btn_free_time = QPushButton("Free time...")
         self._btn_settings = QPushButton("Settings...")
         toolbar.addWidget(self._btn_today)
         toolbar.addWidget(self._btn_new)
         toolbar.addWidget(self._btn_schedules)
+        toolbar.addWidget(self._btn_free_time)
         toolbar.addWidget(self._btn_settings)
         toolbar.addStretch(1)
         outer.addLayout(toolbar)
@@ -126,6 +133,7 @@ class MainWindow(QMainWindow):
         self._btn_today.clicked.connect(self._on_today)
         self._btn_new.clicked.connect(self._on_new_event)
         self._btn_schedules.clicked.connect(self._on_schedules)
+        self._btn_free_time.clicked.connect(self._on_free_time)
         self._btn_settings.clicked.connect(self._on_settings)
         self._calendar.selectionChanged.connect(self._refresh_day_list)
         self._calendar.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -139,7 +147,10 @@ class MainWindow(QMainWindow):
         self._sc_schedules = QShortcut(QKeySequence("Ctrl+3"), self)
         self._sc_schedules.setContext(Qt.ShortcutContext.ApplicationShortcut)
         self._sc_schedules.activated.connect(self._on_schedules)
-        self._sc_settings = QShortcut(QKeySequence("Ctrl+4"), self)
+        self._sc_free_time = QShortcut(QKeySequence("Ctrl+4"), self)
+        self._sc_free_time.setContext(Qt.ShortcutContext.ApplicationShortcut)
+        self._sc_free_time.activated.connect(self._on_free_time)
+        self._sc_settings = QShortcut(QKeySequence("Ctrl+5"), self)
         self._sc_settings.setContext(Qt.ShortcutContext.ApplicationShortcut)
         self._sc_settings.activated.connect(self._on_settings)
         self._events_list.itemDoubleClicked.connect(self._on_item_activated)
@@ -149,32 +160,30 @@ class MainWindow(QMainWindow):
     def _on_today(self) -> None:
         self._calendar.setSelectedDate(QDate.currentDate())
 
-    def _on_settings(self) -> None:
-        sched_open = self._schedules_dialog is not None
-        sett_open = self._settings_dialog is not None
-        sched = self._schedules_dialog
-        sett = self._settings_dialog
-        self._schedules_dialog = None
-        self._settings_dialog = None
-        if sched is not None:
+    def _close_open_dialogs(self) -> None:
+        for attr in ("_schedules_dialog", "_settings_dialog", "_free_time_dialog"):
+            dlg = getattr(self, attr, None)
+            if dlg is None:
+                continue
+            setattr(self, attr, None)
             try:
-                sched.finished.disconnect()
+                dlg.finished.disconnect()
             except (RuntimeError, TypeError):
                 pass
-            sched.close()
-        if sett_open:
-            if sett is not None:
-                try:
-                    sett.finished.disconnect()
-                except (RuntimeError, TypeError):
-                    pass
-                sett.close()
+            try:
+                dlg.close()
+            except RuntimeError:
+                pass
+
+    def _on_settings(self) -> None:
+        already_open = self._settings_dialog is not None
+        self._close_open_dialogs()
+        if already_open:
             return
         dlg = SettingsDialog(self._palette, self._parity, self._sleep, self)
         self._settings_dialog = dlg
         dlg.finished.connect(lambda result, d=dlg: self._on_settings_dialog_finished(d, result))
         dlg.show()
-        _ = sched_open
 
     def _on_settings_dialog_finished(self, dlg, result: int) -> None:
         if dlg is not self._settings_dialog:
@@ -185,37 +194,35 @@ class MainWindow(QMainWindow):
             self._refresh_day_list()
 
     def _on_schedules(self) -> None:
-        sett_open = self._settings_dialog is not None
-        sched_open = self._schedules_dialog is not None
-        sett = self._settings_dialog
-        sched = self._schedules_dialog
-        self._settings_dialog = None
-        self._schedules_dialog = None
-        if sett is not None:
-            try:
-                sett.finished.disconnect()
-            except (RuntimeError, TypeError):
-                pass
-            sett.close()
-        if sched_open:
-            if sched is not None:
-                try:
-                    sched.finished.disconnect()
-                except (RuntimeError, TypeError):
-                    pass
-                sched.close()
+        already_open = self._schedules_dialog is not None
+        self._close_open_dialogs()
+        if already_open:
             return
         dlg = SchedulesDialog(self._schedules, self._palette, self)
         self._schedules_dialog = dlg
         dlg.finished.connect(lambda _result, d=dlg: self._on_schedules_dialog_finished(d))
         dlg.show()
-        _ = sett_open
 
     def _on_schedules_dialog_finished(self, dlg) -> None:
         if dlg is not self._schedules_dialog:
             return
         self._schedules_dialog = None
         self._refresh_day_list()
+
+    def _on_free_time(self) -> None:
+        already_open = self._free_time_dialog is not None
+        self._close_open_dialogs()
+        if already_open:
+            return
+        dlg = FreeTimeDialog(self._free_time, self._parity, self._palette, self)
+        self._free_time_dialog = dlg
+        dlg.finished.connect(lambda _result, d=dlg: self._on_free_time_dialog_finished(d))
+        dlg.show()
+
+    def _on_free_time_dialog_finished(self, dlg) -> None:
+        if dlg is not self._free_time_dialog:
+            return
+        self._free_time_dialog = None
 
     def _on_calendar_context_menu(self, pos) -> None:
         qd = self._calendar.selectedDate()

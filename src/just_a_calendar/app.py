@@ -9,6 +9,7 @@ from .db.connection import connect
 from .db.repositories import EventsRepo, SchedulesRepo, SettingsRepo, SleepRepo
 from .paths import db_path
 from .services.events import EventsService
+from .services.free_time import FreeTimeService
 from .services.palette import PaletteService
 from .services.parity import ParityService
 from .services.schedules import SchedulesService
@@ -27,12 +28,13 @@ def run() -> int:
     schedules_svc = SchedulesService(SchedulesRepo(conn))
     parity_svc = ParityService(settings_repo)
     sleep_svc = SleepService(settings_repo, SleepRepo(conn))
+    free_time_svc = FreeTimeService(events_svc, schedules_svc, sleep_svc, palette_svc)
 
     if not sleep_svc.is_configured():
         dlg = SleepOnboardingDialog(sleep_svc)
         dlg.exec()
         sleep_svc.ensure_default_if_missing()
 
-    window = MainWindow(events_svc, palette_svc, schedules_svc, parity_svc, sleep_svc)
+    window = MainWindow(events_svc, palette_svc, schedules_svc, parity_svc, sleep_svc, free_time_svc)
     window.show()
     return app.exec()

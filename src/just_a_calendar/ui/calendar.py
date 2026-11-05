@@ -35,20 +35,23 @@ class RoundedCalendar(QCalendarWidget):
         is_selected = qdate == self.selectedDate()
         is_today = qdate == QDate.currentDate()
 
-        fill = QRectF(rect.adjusted(3, 3, -3, -3))
+        min_dim = min(rect.width(), rect.height())
+        pad = max(3.0, min(9.0, min_dim * 0.08))
+        radius = max(6.0, min(16.0, min_dim * 0.15))
+        fill = QRectF(rect.adjusted(pad, pad, -pad, -pad))
 
         if is_selected:
             painter.setPen(Qt.PenStyle.NoPen)
             painter.setBrush(self.palette().color(QPalette.ColorRole.Highlight))
-            painter.drawRoundedRect(fill, self._RADIUS, self._RADIUS)
+            painter.drawRoundedRect(fill, radius, radius)
         elif colors:
             if len(colors) == 1:
                 painter.setPen(Qt.PenStyle.NoPen)
                 painter.setBrush(QColor(colors[0]))
-                painter.drawRoundedRect(fill, self._RADIUS, self._RADIUS)
+                painter.drawRoundedRect(fill, radius, radius)
             else:
                 clip_path = QPainterPath()
-                clip_path.addRoundedRect(fill, self._RADIUS, self._RADIUS)
+                clip_path.addRoundedRect(fill, radius, radius)
                 painter.save()
                 painter.setClipPath(clip_path)
                 painter.setPen(Qt.PenStyle.NoPen)
@@ -63,10 +66,17 @@ class RoundedCalendar(QCalendarWidget):
         if is_today and not is_selected:
             painter.setBrush(Qt.BrushStyle.NoBrush)
             painter.setPen(QColor(255, 255, 255, 150))
-            painter.drawRoundedRect(fill, self._RADIUS, self._RADIUS)
+            painter.drawRoundedRect(fill, radius, radius)
 
-        if is_selected or colors:
+        if is_selected:
             text_color = QColor("#FFFFFF")
+        elif colors:
+            lum_sum = 0.0
+            for c in colors:
+                qc = QColor(c)
+                lum_sum += (0.2126 * qc.red() + 0.7152 * qc.green() + 0.0722 * qc.blue()) / 255.0
+            avg_lum = lum_sum / len(colors)
+            text_color = QColor("#222222") if avg_lum > 0.6 else QColor("#FFFFFF")
         else:
             base = self.palette().color(QPalette.ColorRole.Text)
             text_color = QColor(base)
