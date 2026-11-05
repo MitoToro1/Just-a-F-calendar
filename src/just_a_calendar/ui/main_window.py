@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from typing import Optional
 
-from PySide6.QtCore import QDate, QDateTime, QTime, Qt
+from PySide6.QtCore import QDate, QDateTime, QTime, Qt, QTimer
 from PySide6.QtGui import QColor, QIcon, QKeySequence, QPixmap, QShortcut
 from PySide6.QtWidgets import (
     QDialog,
@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QSplitter,
+    QSystemTrayIcon,
     QVBoxLayout,
     QWidget,
 )
@@ -25,6 +26,7 @@ from ..services.events import EventsService
 from ..services.free_time import FreeTimeService
 from ..services.palette import PaletteService
 from ..services.parity import ParityService
+from ..services.reminders import ReminderService
 from ..services.schedules import SchedulesService
 from ..services.sleep import SleepService
 from .calendar import RoundedCalendar
@@ -44,6 +46,7 @@ class MainWindow(QMainWindow):
         parity_service: ParityService,
         sleep_service: SleepService,
         free_time_service: FreeTimeService,
+        reminder_service: ReminderService,
         tray_icon: Optional[TrayIcon] = None,
     ) -> None:
         super().__init__()
@@ -55,13 +58,66 @@ class MainWindow(QMainWindow):
         self._parity = parity_service
         self._sleep = sleep_service
         self._free_time = free_time_service
+        self._reminders = reminder_service
         self._tray = tray_icon
         self._schedules_dialog = None
         self._settings_dialog = None
         self._free_time_dialog = None
+        self._last_reminder_event_id: Optional[int] = None
         self._build_ui()
         self._refresh_events_highlight()
         self._refresh_day_list()
+        self._setup_reminders()
+
+    def _setup_reminders(self) -> None:
+        if self._tray is not None:
+            self._tray.messageClicked.connect(self._on_tray_message_clicked)
+        self._reminder_timer = QTimer(self)
+        self._reminder_timer.setInterval(30_000)
+        self._reminder_timer.timeout.connect(self._check_reminders)
+        self._reminder_timer.start()
+        QTimer.singleShot(0, self._check_reminders)
+
+    def _check_reminders(self) -> None:
+        try:
+            due = list(self._reminders.due_reminders())
+        except Exception:
+            return
+        for event in due:
+            try:
+                self._reminders.mark_fired(event.id)
+            except Exception:
+                continue
+            self._last_reminder_event_id = event.id
+            if self._tray is not None:
+                try:
+                    hhmm = datetime.fromisoformat(event.starts_at).strftime("%H:%M")
+                except ValueError:
+                    hhmm = ""
+                body = f"{event.title} — {hhmm}" if hhmm else event.title
+                self._tray.showMessage(
+                    "Just a Calendar",
+                    body,
+                    QSystemTrayIcon.MessageIcon.Information,
+                    10_000,
+                )
+
+    def _on_tray_message_clicked(self) -> None:
+        if self._last_reminder_event_id is None:
+            self.show_from_tray()
+            return
+        event_id = self._last_reminder_event_id
+        self._last_reminder_event_id = None
+        for e in self._events.list_all():
+            if e.id == event_id:
+                try:
+                    day = datetime.fromisoformat(e.starts_at).date()
+                except ValueError:
+                    break
+                self._calendar.setSelectedDate(QDate(day.year, day.month, day.day))
+                self._calendar.setCurrentPage(day.year, day.month)
+                break
+        self.show_from_tray()
 
     def _build_ui(self) -> None:
         central = QWidget(self)
