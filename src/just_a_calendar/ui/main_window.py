@@ -170,7 +170,7 @@ class MainWindow(QMainWindow):
                     pass
                 sett.close()
             return
-        dlg = SettingsDialog(self._palette, self._parity, self)
+        dlg = SettingsDialog(self._palette, self._parity, self._sleep, self)
         self._settings_dialog = dlg
         dlg.finished.connect(lambda result, d=dlg: self._on_settings_dialog_finished(d, result))
         dlg.show()
