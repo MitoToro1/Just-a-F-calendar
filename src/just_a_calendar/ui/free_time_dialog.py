@@ -5,15 +5,17 @@ from datetime import date, timedelta
 from typing import Optional
 
 from PySide6.QtCore import QDate, Qt
-from PySide6.QtGui import QColor, QIcon, QPixmap
+from PySide6.QtGui import QColor, QFont, QIcon, QPixmap
 from PySide6.QtWidgets import (
     QDialog,
     QHBoxLayout,
     QLabel,
     QListWidget,
     QListWidgetItem,
+    QPlainTextEdit,
     QPushButton,
     QSplitter,
+    QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -75,8 +77,14 @@ class FreeTimeDialog(QDialog):
 
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
+        self._stack = QStackedWidget()
+        layout.addWidget(self._stack, 1)
+
+        calendar_page = QWidget()
+        cp_layout = QVBoxLayout(calendar_page)
+        cp_layout.setContentsMargins(0, 0, 0, 0)
         splitter = QSplitter(Qt.Horizontal)
-        layout.addWidget(splitter, 1)
+        cp_layout.addWidget(splitter, 1)
 
         left = QWidget()
         ll = QVBoxLayout(left)
@@ -164,16 +172,69 @@ class FreeTimeDialog(QDialog):
         splitter.setStretchFactor(1, 2)
         splitter.setSizes([600, 360])
 
+        self._stack.addWidget(calendar_page)
+
+        text_page = QWidget()
+        tp_layout = QVBoxLayout(text_page)
+        tp_layout.setContentsMargins(0, 0, 0, 0)
+        self._text_edit = QPlainTextEdit()
+        self._text_edit.setReadOnly(True)
+        mono = QFont("Consolas")
+        mono.setPointSize(12)
+        self._text_edit.setFont(mono)
+        tp_layout.addWidget(self._text_edit, 1)
+        self._stack.addWidget(text_page)
+
         bottom = QHBoxLayout()
-        bottom.addStretch(1)
+        self._btn_show_text = QPushButton("Show as text")
+        self._btn_back_to_calendar = QPushButton("Back to calendar")
+        self._btn_back_to_calendar.setVisible(False)
         self._btn_close = QPushButton("Close")
-        self._btn_close.clicked.connect(self.accept)
+        bottom.addWidget(self._btn_show_text)
+        bottom.addWidget(self._btn_back_to_calendar)
+        bottom.addStretch(1)
         bottom.addWidget(self._btn_close)
         layout.addLayout(bottom)
 
+        self._btn_show_text.clicked.connect(self._on_show_text)
+        self._btn_back_to_calendar.clicked.connect(self._on_show_calendar)
+        self._btn_close.clicked.connect(self.accept)
         self._btn_today.clicked.connect(self._on_today)
 
         self._refresh_heatmap()
+
+    def _on_show_text(self) -> None:
+        self._refresh_text()
+        self._stack.setCurrentIndex(1)
+        self._btn_show_text.setVisible(False)
+        self._btn_back_to_calendar.setVisible(True)
+
+    def _on_show_calendar(self) -> None:
+        self._stack.setCurrentIndex(0)
+        self._btn_show_text.setVisible(True)
+        self._btn_back_to_calendar.setVisible(False)
+
+    def _refresh_text(self) -> None:
+        today = date.today()
+        lines = ["= Free time =", ""]
+        for offset in range(14):
+            day = today + timedelta(days=offset)
+            if offset == 0:
+                header = "Today:"
+            elif offset == 1:
+                header = "Tomorrow:"
+            else:
+                header = day.strftime("%a, %d %B:")
+            lines.append(header)
+            parity = self._parity.week_parity_for(day)
+            intervals = self._free.free_intervals_for_day(day, parity, include_sleep=True)
+            if not intervals:
+                lines.append("No free time")
+            else:
+                for _s, _e, s_str, e_str in intervals:
+                    lines.append(f"\u2022 {s_str} \u2014 {e_str}")
+            lines.append("")
+        self._text_edit.setPlainText("\n".join(lines))
 
     def _on_today(self) -> None:
         self._calendar.setSelectedDate(QDate.currentDate())
