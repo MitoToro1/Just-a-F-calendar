@@ -24,6 +24,7 @@ from ..services.events import EventsService
 from ..services.palette import PaletteService
 from ..services.parity import ParityService
 from ..services.schedules import SchedulesService
+from ..services.sleep import SleepService
 from .calendar import RoundedCalendar
 from .event_dialog import EventDialog
 from .schedules_dialog import SchedulesDialog
@@ -37,6 +38,7 @@ class MainWindow(QMainWindow):
         palette_service: PaletteService,
         schedules_service: SchedulesService,
         parity_service: ParityService,
+        sleep_service: SleepService,
     ) -> None:
         super().__init__()
         self.setWindowTitle("Just a Calendar")
@@ -45,6 +47,7 @@ class MainWindow(QMainWindow):
         self._palette = palette_service
         self._schedules = schedules_service
         self._parity = parity_service
+        self._sleep = sleep_service
         self._schedules_dialog = None
         self._settings_dialog = None
         self._build_ui()
