@@ -428,12 +428,13 @@ class SchedulesDialog(QDialog):
                 "The selected slot no longer exists. Selection cleared."
             )
             return
-        ok = QMessageBox.question(
-            self, "Delete slot", "Delete this slot?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-        if ok != QMessageBox.StandardButton.Yes:
+        box = QMessageBox(self)
+        box.setWindowTitle("Delete slot")
+        box.setText("Delete this slot?")
+        box.setIcon(QMessageBox.Icon.Question)
+        box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        box.setDefaultButton(QMessageBox.StandardButton.Yes)
+        if box.exec() != QMessageBox.StandardButton.Yes:
             return
         self._svc.delete_slot(self._selected_slot_id)
         self._selected_slot_id = None

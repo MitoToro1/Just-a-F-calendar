@@ -147,32 +147,70 @@ class MainWindow(QMainWindow):
         self._calendar.setSelectedDate(QDate.currentDate())
 
     def _on_settings(self) -> None:
-        if self._settings_dialog is not None:
-            self._settings_dialog.close()
+        sched_open = self._schedules_dialog is not None
+        sett_open = self._settings_dialog is not None
+        sched = self._schedules_dialog
+        sett = self._settings_dialog
+        self._schedules_dialog = None
+        self._settings_dialog = None
+        if sched is not None:
+            try:
+                sched.finished.disconnect()
+            except (RuntimeError, TypeError):
+                pass
+            sched.close()
+        if sett_open:
+            if sett is not None:
+                try:
+                    sett.finished.disconnect()
+                except (RuntimeError, TypeError):
+                    pass
+                sett.close()
             return
-        if self._schedules_dialog is not None:
-            self._schedules_dialog.close()
-        self._settings_dialog = SettingsDialog(self._palette, self._parity, self)
-        self._settings_dialog.finished.connect(self._on_settings_dialog_finished)
-        self._settings_dialog.show()
+        dlg = SettingsDialog(self._palette, self._parity, self)
+        self._settings_dialog = dlg
+        dlg.finished.connect(lambda result, d=dlg: self._on_settings_dialog_finished(d, result))
+        dlg.show()
+        _ = sched_open
 
-    def _on_settings_dialog_finished(self, result: int) -> None:
+    def _on_settings_dialog_finished(self, dlg, result: int) -> None:
+        if dlg is not self._settings_dialog:
+            return
         self._settings_dialog = None
         if result == QDialog.DialogCode.Accepted:
             self._refresh_events_highlight()
             self._refresh_day_list()
 
     def _on_schedules(self) -> None:
-        if self._schedules_dialog is not None:
-            self._schedules_dialog.close()
+        sett_open = self._settings_dialog is not None
+        sched_open = self._schedules_dialog is not None
+        sett = self._settings_dialog
+        sched = self._schedules_dialog
+        self._settings_dialog = None
+        self._schedules_dialog = None
+        if sett is not None:
+            try:
+                sett.finished.disconnect()
+            except (RuntimeError, TypeError):
+                pass
+            sett.close()
+        if sched_open:
+            if sched is not None:
+                try:
+                    sched.finished.disconnect()
+                except (RuntimeError, TypeError):
+                    pass
+                sched.close()
             return
-        if self._settings_dialog is not None:
-            self._settings_dialog.close()
-        self._schedules_dialog = SchedulesDialog(self._schedules, self._palette, self)
-        self._schedules_dialog.finished.connect(self._on_schedules_dialog_finished)
-        self._schedules_dialog.show()
+        dlg = SchedulesDialog(self._schedules, self._palette, self)
+        self._schedules_dialog = dlg
+        dlg.finished.connect(lambda _result, d=dlg: self._on_schedules_dialog_finished(d))
+        dlg.show()
+        _ = sett_open
 
-    def _on_schedules_dialog_finished(self, _result: int) -> None:
+    def _on_schedules_dialog_finished(self, dlg) -> None:
+        if dlg is not self._schedules_dialog:
+            return
         self._schedules_dialog = None
         self._refresh_day_list()
 

@@ -221,11 +221,12 @@ class EventDialog(QDialog):
     def _on_delete(self) -> None:
         if self._event is None:
             return
-        ok = QMessageBox.question(
-            self, "Delete event", "Delete this event?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No,
-        )
-        if ok == QMessageBox.StandardButton.Yes:
+        box = QMessageBox(self)
+        box.setWindowTitle("Delete event")
+        box.setText("Delete this event?")
+        box.setIcon(QMessageBox.Icon.Question)
+        box.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        box.setDefaultButton(QMessageBox.StandardButton.Yes)
+        if box.exec() == QMessageBox.StandardButton.Yes:
             self._events.delete(self._event.id)
             self.accept()
