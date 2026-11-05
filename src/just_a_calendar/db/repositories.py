@@ -197,6 +197,30 @@ class SchedulesRepo:
             (1 if active else 0, sid),
         )
 
+    def update(self, sid: int, *, name: str, parity: str, active: bool) -> Schedule:
+        _validate_parity(parity)
+        cur = self.conn.execute(
+            "UPDATE schedules SET name=?, parity=?, active=? WHERE id=?",
+            (name, parity, 1 if active else 0, sid),
+        )
+        if cur.rowcount == 0:
+            raise KeyError(f"Schedule {sid} not found")
+        return self.get(sid)
+
+    def update_slot(self, slot_id: int, *, weekday: int, start_time: str, end_time: str) -> ScheduleSlot:
+        _validate_weekday(weekday)
+        _validate_hhmm(start_time, "start_time")
+        _validate_hhmm(end_time, "end_time")
+        cur = self.conn.execute(
+            "UPDATE schedule_slots SET weekday=?, start_time=?, end_time=? WHERE id=?",
+            (weekday, start_time, end_time, slot_id),
+        )
+        if cur.rowcount == 0:
+            raise KeyError(f"Slot {slot_id} not found")
+        row = self.conn.execute(
+            "SELECT * FROM schedule_slots WHERE id=?", (slot_id,)
+        ).fetchone()
+        return _row_to_slot(row)
     def delete(self, sid: int) -> None:
         self.conn.execute("DELETE FROM schedules WHERE id=?", (sid,))
 
