@@ -23,6 +23,7 @@ from ..services.events import EventsService
 from ..services.palette import PaletteService
 from .calendar import RoundedCalendar
 from .event_dialog import EventDialog
+from .settings_dialog import PaletteSettingsDialog
 
 
 class MainWindow(QMainWindow):
@@ -48,7 +49,6 @@ class MainWindow(QMainWindow):
         self._btn_today = QPushButton("Today")
         self._btn_new = QPushButton("New event...")
         self._btn_settings = QPushButton("Settings...")
-        self._btn_settings.setEnabled(False)
         toolbar.addWidget(self._btn_today)
         toolbar.addWidget(self._btn_new)
         toolbar.addWidget(self._btn_settings)
@@ -106,6 +106,7 @@ class MainWindow(QMainWindow):
 
         self._btn_today.clicked.connect(self._on_today)
         self._btn_new.clicked.connect(self._on_new_event)
+        self._btn_settings.clicked.connect(self._on_settings)
         self._calendar.selectionChanged.connect(self._refresh_day_list)
         self._events_list.itemDoubleClicked.connect(self._on_item_activated)
         self._events_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -113,6 +114,12 @@ class MainWindow(QMainWindow):
 
     def _on_today(self) -> None:
         self._calendar.setSelectedDate(QDate.currentDate())
+
+    def _on_settings(self) -> None:
+        dlg = PaletteSettingsDialog(self._palette, self)
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            self._refresh_events_highlight()
+            self._refresh_day_list()
 
     def _refresh_events_highlight(self) -> None:
         palette_color = self._palette.get("events")
