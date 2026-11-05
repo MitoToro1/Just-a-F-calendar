@@ -15,6 +15,7 @@ from .services.parity import ParityService
 from .services.reminders import ReminderService
 from .services.schedules import SchedulesService
 from .services.sleep import SleepService
+from .services import time_format
 from PySide6.QtWidgets import QSystemTrayIcon
 
 from .ui.main_window import MainWindow
@@ -28,6 +29,7 @@ def run() -> int:
     app.setQuitOnLastWindowClosed(False)
     conn = connect(db_path())
     settings_repo = SettingsRepo(conn)
+    time_format.load_from_settings(settings_repo)
     events_repo = EventsRepo(conn)
     events_svc = EventsService(events_repo)
     palette_svc = PaletteService(settings_repo)

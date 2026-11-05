@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
 from ..services.free_time import FreeTimeService
 from ..services.palette import PaletteService
 from ..services.parity import ParityService
+from ..services import time_format
 from .calendar import RoundedCalendar
 
 
@@ -232,7 +233,9 @@ class FreeTimeDialog(QDialog):
                 lines.append("No free time")
             else:
                 for _s, _e, s_str, e_str in intervals:
-                    lines.append(f"\u2022 {s_str} \u2014 {e_str}")
+                    lines.append(
+                        f"\u2022 {time_format.format_hhmm(s_str)} \u2014 {time_format.format_hhmm(e_str)}"
+                    )
             lines.append("")
         self._text_edit.setPlainText("\n".join(lines))
 
@@ -280,7 +283,9 @@ class FreeTimeDialog(QDialog):
         else:
             icon = self._make_icon(free_color)
             for _s, _e, s_str, e_str in intervals:
-                item = QListWidgetItem(f"{s_str} — {e_str}")
+                item = QListWidgetItem(
+                    f"{time_format.format_hhmm(s_str)} — {time_format.format_hhmm(e_str)}"
+                )
                 item.setIcon(icon)
                 self._list.addItem(item)
 

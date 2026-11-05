@@ -29,6 +29,7 @@ from PySide6.QtWidgets import (
 from ..services.palette import DEFAULT_PALETTE, PaletteService
 from ..services.parity import ParityService
 from ..services.sleep import SleepService
+from ..services import time_format
 
 _COLOR_ORDER = ("events", "sleep")
 _COLOR_LABELS = {
@@ -219,6 +220,35 @@ class SettingsDialog(QDialog):
         row.addStretch(1)
         v.addLayout(row)
 
+        v.addSpacing(12)
+        sep = QLabel("")
+        sep.setStyleSheet("border-top: 1px solid #3A3A3A;")
+        v.addWidget(sep)
+        v.addSpacing(12)
+
+        tf_title = QLabel("Time format")
+        tf_title.setStyleSheet("font-weight: 600;")
+        v.addWidget(tf_title)
+
+        tf_row = QHBoxLayout()
+        tf_row.addWidget(QLabel("Show times as:"))
+        self._tf_24 = QPushButton("24-hour")
+        self._tf_12 = QPushButton("AM/PM")
+        self._tf_24.setCheckable(True)
+        self._tf_12.setCheckable(True)
+        self._tf_group = QButtonGroup(self)
+        self._tf_group.setExclusive(True)
+        self._tf_group.addButton(self._tf_24)
+        self._tf_group.addButton(self._tf_12)
+        if time_format.current() == "12h":
+            self._tf_12.setChecked(True)
+        else:
+            self._tf_24.setChecked(True)
+        tf_row.addWidget(self._tf_24)
+        tf_row.addWidget(self._tf_12)
+        tf_row.addStretch(1)
+        v.addLayout(tf_row)
+
         v.addStretch(1)
         return page
 
@@ -260,10 +290,10 @@ class SettingsDialog(QDialog):
         ff = QFormLayout(fixed_page)
         fixed_vals = self._sleep.get_fixed() or ("23:00", "07:00")
         self._fixed_bed = QTimeEdit(QTime.fromString(fixed_vals[0], "HH:mm"))
-        self._fixed_bed.setDisplayFormat("HH:mm")
+        self._fixed_bed.setDisplayFormat(time_format.current_qt_time())
         ff.addRow("Bedtime", self._fixed_bed)
         self._fixed_wake = QTimeEdit(QTime.fromString(fixed_vals[1], "HH:mm"))
-        self._fixed_wake.setDisplayFormat("HH:mm")
+        self._fixed_wake.setDisplayFormat(time_format.current_qt_time())
         ff.addRow("Wake up", self._fixed_wake)
         self._sleep_stack.addWidget(fixed_page)
 
@@ -276,9 +306,9 @@ class SettingsDialog(QDialog):
         for weekday in range(7):
             start, end = existing.get(weekday, ("22:00", "08:00"))
             bed = QTimeEdit(QTime.fromString(start, "HH:mm"))
-            bed.setDisplayFormat("HH:mm")
+            bed.setDisplayFormat(time_format.current_qt_time())
             wake = QTimeEdit(QTime.fromString(end, "HH:mm"))
-            wake.setDisplayFormat("HH:mm")
+            wake.setDisplayFormat(time_format.current_qt_time())
             g.addWidget(QLabel(_WEEKDAYS_FULL[weekday]), weekday + 1, 0)
             g.addWidget(bed, weekday + 1, 1)
             g.addWidget(wake, weekday + 1, 2)
@@ -356,4 +386,6 @@ class SettingsDialog(QDialog):
 
         if self._selected_parity != self._initial_parity:
             self._parity.set_anchor(date.today(), self._selected_parity)
+        new_tf = "12h" if self._tf_12.isChecked() else "24h"
+        time_format.save_to_settings(self._parity.settings, new_tf)
         self.accept()

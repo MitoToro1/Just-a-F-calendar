@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
 from ..models.entities import Event
 from ..services.events import EventsService
 from ..services.palette import PaletteService
+from ..services import time_format
 
 _REMINDER_UNITS = ("hours", "days", "months", "years")
 
@@ -69,12 +70,12 @@ class EventDialog(QDialog):
 
         self._starts = QDateTimeEdit()
         self._starts.setCalendarPopup(True)
-        self._starts.setDisplayFormat("yyyy-MM-dd HH:mm")
+        self._starts.setDisplayFormat(time_format.current_qt_datetime())
         form.addRow("Starts at", self._starts)
 
         self._ends = QDateTimeEdit()
         self._ends.setCalendarPopup(True)
-        self._ends.setDisplayFormat("yyyy-MM-dd HH:mm")
+        self._ends.setDisplayFormat(time_format.current_qt_datetime())
         form.addRow("Ends at", self._ends)
 
         reminder_row = QWidget()

@@ -18,6 +18,10 @@ class ParityService:
     def __init__(self, settings: SettingsRepo) -> None:
         self._s = settings
 
+    @property
+    def settings(self) -> SettingsRepo:
+        return self._s
+
     def _get_anchor(self) -> tuple[date, str]:
         raw_date = self._s.get(_ANCHOR_DATE_KEY)
         raw_value = self._s.get(_ANCHOR_VALUE_KEY)

@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 )
 
 from ..services.sleep import SleepService
+from ..services import time_format
 
 
 class SleepOnboardingDialog(QDialog):
@@ -43,10 +44,10 @@ class SleepOnboardingDialog(QDialog):
 
         form = QFormLayout()
         self._bed = QTimeEdit(QTime(23, 0))
-        self._bed.setDisplayFormat("HH:mm")
+        self._bed.setDisplayFormat(time_format.current_qt_time())
         form.addRow("Bedtime", self._bed)
         self._wake = QTimeEdit(QTime(7, 0))
-        self._wake.setDisplayFormat("HH:mm")
+        self._wake.setDisplayFormat(time_format.current_qt_time())
         form.addRow("Wake up", self._wake)
         layout.addLayout(form)
 

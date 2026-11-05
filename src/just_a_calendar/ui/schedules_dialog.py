@@ -29,6 +29,7 @@ from PySide6.QtWidgets import (
 )
 
 from ..services.palette import PaletteService
+from ..services import time_format
 from ..services.schedules import SchedulesService
 
 _WEEKDAYS_SHORT = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
@@ -108,10 +109,10 @@ class _SlotEditDialog(QDialog):
         self._day.setCurrentIndex(weekday if 0 <= weekday <= 6 else 0)
         form.addRow("Day", self._day)
         self._start = QTimeEdit(QTime.fromString(start_time, "HH:mm"))
-        self._start.setDisplayFormat("HH:mm")
+        self._start.setDisplayFormat(time_format.current_qt_time())
         form.addRow("Start", self._start)
         self._end = QTimeEdit(QTime.fromString(end_time, "HH:mm"))
-        self._end.setDisplayFormat("HH:mm")
+        self._end.setDisplayFormat(time_format.current_qt_time())
         form.addRow("End", self._end)
         layout.addLayout(form)
         self._error = QLabel("")
@@ -147,7 +148,7 @@ class _SlotBlock(QPushButton):
     def __init__(self, slot, color: str, parent=None) -> None:
         super().__init__(parent)
         self.slot_id = slot.id
-        self.setText(f"{slot.start_time}\n{slot.end_time}")
+        self.setText(f"{time_format.format_hhmm(slot.start_time)}\n{time_format.format_hhmm(slot.end_time)}")
         self.setCheckable(True)
         self.setFixedHeight(44)
         self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)

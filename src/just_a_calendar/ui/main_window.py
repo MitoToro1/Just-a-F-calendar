@@ -29,6 +29,7 @@ from ..services.parity import ParityService
 from ..services.reminders import ReminderService
 from ..services.schedules import SchedulesService
 from ..services.sleep import SleepService
+from ..services import time_format
 from .calendar import RoundedCalendar
 from .event_dialog import EventDialog
 from .free_time_dialog import FreeTimeDialog
@@ -92,9 +93,9 @@ class MainWindow(QMainWindow):
             if self._tray is not None:
                 try:
                     hhmm = datetime.fromisoformat(event.starts_at).strftime("%H:%M")
+                    body = f"{event.title} — {time_format.format_hhmm(hhmm)}"
                 except ValueError:
-                    hhmm = ""
-                body = f"{event.title} — {hhmm}" if hhmm else event.title
+                    body = event.title
                 self._tray.showMessage(
                     "Just a Calendar",
                     body,
@@ -345,7 +346,9 @@ class MainWindow(QMainWindow):
         sleep_color = self._palette.get("sleep")
 
         sleep_start, sleep_end = self._sleep.resolve_for_day(day)
-        sleep_item = QListWidgetItem(f"{sleep_start}-{sleep_end}  Sleep")
+        sleep_item = QListWidgetItem(
+            f"{time_format.format_hhmm(sleep_start)}-{time_format.format_hhmm(sleep_end)}  Sleep"
+        )
         sleep_item.setIcon(self._make_icon(sleep_color))
         sleep_item.setFlags(Qt.ItemFlag.ItemIsEnabled)
         self._events_list.addItem(sleep_item)
@@ -354,7 +357,9 @@ class MainWindow(QMainWindow):
             try:
                 start = datetime.fromisoformat(e.starts_at)
                 end = datetime.fromisoformat(e.ends_at)
-                text = f"{start.strftime('%H:%M')}-{end.strftime('%H:%M')}  {e.title}"
+                s_hhmm = time_format.format_hhmm(start.strftime("%H:%M"))
+                e_hhmm = time_format.format_hhmm(end.strftime("%H:%M"))
+                text = f"{s_hhmm}-{e_hhmm}  {e.title}"
             except ValueError:
                 text = f"{e.starts_at} - {e.starts_at}  {e.title}"
             if e.description:
@@ -368,7 +373,7 @@ class MainWindow(QMainWindow):
             sched = self._schedules.get(slot.schedule_id)
             sched_name = sched.name if sched else "?"
             label = slot.title if slot.title else sched_name
-            item = QListWidgetItem(f"{slot.start_time}-{slot.end_time}  {label}")
+            item = QListWidgetItem(f"{time_format.format_hhmm(slot.start_time)}-{time_format.format_hhmm(slot.end_time)}  {label}")
             item.setIcon(self._make_icon(slot.color or events_color))
             self._events_list.addItem(item)
 
