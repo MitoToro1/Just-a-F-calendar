@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Optional
 
 from PySide6.QtCore import QTime, Qt, Signal
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -293,6 +294,9 @@ class SchedulesDialog(QDialog):
         self._btn_add_slot.clicked.connect(self._on_add_slot)
         self._btn_del_slot.clicked.connect(self._on_delete_slot)
         self._btn_close.clicked.connect(self.accept)
+
+        self._del_shortcut = QShortcut(QKeySequence(Qt.Key.Key_Delete), self)
+        self._del_shortcut.activated.connect(self._on_delete_slot)
 
     def _reload_schedules(self) -> None:
         current_id = self._current_schedule_id()

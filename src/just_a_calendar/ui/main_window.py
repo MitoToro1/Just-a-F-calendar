@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import date, datetime
 
 from PySide6.QtCore import QDate, QDateTime, QTime, Qt
-from PySide6.QtGui import QColor, QIcon, QPixmap
+from PySide6.QtGui import QColor, QIcon, QKeySequence, QPixmap, QShortcut
 from PySide6.QtWidgets import (
     QDialog,
     QHBoxLayout,
@@ -45,6 +45,8 @@ class MainWindow(QMainWindow):
         self._palette = palette_service
         self._schedules = schedules_service
         self._parity = parity_service
+        self._schedules_dialog = None
+        self._settings_dialog = None
         self._build_ui()
         self._refresh_events_highlight()
         self._refresh_day_list()
@@ -125,6 +127,18 @@ class MainWindow(QMainWindow):
         self._calendar.selectionChanged.connect(self._refresh_day_list)
         self._calendar.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self._calendar.customContextMenuRequested.connect(self._on_calendar_context_menu)
+
+        # Ctrl+1 = Today, Ctrl+2 = New event, Ctrl+3 = Schedules, Ctrl+4 = Settings
+        self._sc_today = QShortcut(QKeySequence("Ctrl+1"), self)
+        self._sc_today.activated.connect(self._on_today)
+        self._sc_new = QShortcut(QKeySequence("Ctrl+2"), self)
+        self._sc_new.activated.connect(self._on_new_event)
+        self._sc_schedules = QShortcut(QKeySequence("Ctrl+3"), self)
+        self._sc_schedules.setContext(Qt.ShortcutContext.ApplicationShortcut)
+        self._sc_schedules.activated.connect(self._on_schedules)
+        self._sc_settings = QShortcut(QKeySequence("Ctrl+4"), self)
+        self._sc_settings.setContext(Qt.ShortcutContext.ApplicationShortcut)
+        self._sc_settings.activated.connect(self._on_settings)
         self._events_list.itemDoubleClicked.connect(self._on_item_activated)
         self._events_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self._events_list.customContextMenuRequested.connect(self._on_context_menu)
@@ -133,14 +147,33 @@ class MainWindow(QMainWindow):
         self._calendar.setSelectedDate(QDate.currentDate())
 
     def _on_settings(self) -> None:
-        dlg = SettingsDialog(self._palette, self._parity, self)
-        if dlg.exec() == QDialog.DialogCode.Accepted:
+        if self._settings_dialog is not None:
+            self._settings_dialog.close()
+            return
+        if self._schedules_dialog is not None:
+            self._schedules_dialog.close()
+        self._settings_dialog = SettingsDialog(self._palette, self._parity, self)
+        self._settings_dialog.finished.connect(self._on_settings_dialog_finished)
+        self._settings_dialog.show()
+
+    def _on_settings_dialog_finished(self, result: int) -> None:
+        self._settings_dialog = None
+        if result == QDialog.DialogCode.Accepted:
             self._refresh_events_highlight()
             self._refresh_day_list()
 
     def _on_schedules(self) -> None:
-        dlg = SchedulesDialog(self._schedules, self._palette, self)
-        dlg.exec()
+        if self._schedules_dialog is not None:
+            self._schedules_dialog.close()
+            return
+        if self._settings_dialog is not None:
+            self._settings_dialog.close()
+        self._schedules_dialog = SchedulesDialog(self._schedules, self._palette, self)
+        self._schedules_dialog.finished.connect(self._on_schedules_dialog_finished)
+        self._schedules_dialog.show()
+
+    def _on_schedules_dialog_finished(self, _result: int) -> None:
+        self._schedules_dialog = None
         self._refresh_day_list()
 
     def _on_calendar_context_menu(self, pos) -> None:
