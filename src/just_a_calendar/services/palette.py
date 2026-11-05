@@ -10,7 +10,6 @@ _HEX_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
 
 DEFAULT_PALETTE = {
     "events":    "#4A90D9",
-    "schedule":  "#7B68EE",
     "sleep":     "#2C3E50",
     "free_time": "#27AE60",
 }

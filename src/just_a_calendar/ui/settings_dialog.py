@@ -1,11 +1,13 @@
-"""Palette settings dialog."""
+"""Settings dialog with Colors and General tabs."""
 from __future__ import annotations
 
+from datetime import date
 from typing import Optional
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QIntValidator
 from PySide6.QtWidgets import (
+    QButtonGroup,
     QColorDialog,
     QDialog,
     QDialogButtonBox,
@@ -15,16 +17,17 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QMessageBox,
     QPushButton,
+    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
 
 from ..services.palette import DEFAULT_PALETTE, PaletteService
+from ..services.parity import ParityService
 
-_ORDER = ("events", "schedule", "sleep", "free_time")
-_LABELS = {
-    "events":    "Events",
-    "schedule":  "Schedule blocks",
+_COLOR_ORDER = ("events", "sleep", "free_time")
+_COLOR_LABELS = {
+    "events":    "Events' default color",
     "sleep":     "Sleep",
     "free_time": "Free time",
 }
@@ -119,25 +122,29 @@ class _ColorRow(QWidget):
         self._set_hex(self._default_hex)
 
 
-class PaletteSettingsDialog(QDialog):
-    def __init__(self, palette_service: PaletteService, parent: Optional[QWidget] = None) -> None:
+class SettingsDialog(QDialog):
+    def __init__(
+        self,
+        palette_service: PaletteService,
+        parity_service: ParityService,
+        parent: Optional[QWidget] = None,
+    ) -> None:
         super().__init__(parent)
         self._palette = palette_service
+        self._parity = parity_service
         self._rows: dict[str, _ColorRow] = {}
-        self.setWindowTitle("Palette settings")
-        self.setMinimumWidth(600)
+        self._initial_parity = self._parity.current_week_parity()
+        self._selected_parity = self._initial_parity
+        self.setWindowTitle("Settings")
+        self.setMinimumWidth(640)
         self._build_ui()
 
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
-        form = QFormLayout()
-        form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
-        current = self._palette.all()
-        for key in _ORDER:
-            row = _ColorRow(current[key], DEFAULT_PALETTE[key])
-            self._rows[key] = row
-            form.addRow(_LABELS[key], row)
-        layout.addLayout(form)
+        tabs = QTabWidget()
+        tabs.addTab(self._build_colors_tab(), "Colors")
+        tabs.addTab(self._build_general_tab(), "General")
+        layout.addWidget(tabs)
 
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Save
@@ -147,14 +154,71 @@ class PaletteSettingsDialog(QDialog):
         buttons.rejected.connect(self.reject)
         layout.addWidget(buttons)
 
+    def _build_colors_tab(self) -> QWidget:
+        page = QWidget()
+        form = QFormLayout(page)
+        form.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
+        current = self._palette.all()
+        for key in _COLOR_ORDER:
+            row = _ColorRow(current[key], DEFAULT_PALETTE[key])
+            self._rows[key] = row
+            form.addRow(_COLOR_LABELS[key], row)
+        return page
+
+    def _build_general_tab(self) -> QWidget:
+        page = QWidget()
+        v = QVBoxLayout(page)
+
+        title = QLabel("Week parity")
+        title.setStyleSheet("font-weight: 600;")
+        v.addWidget(title)
+
+        hint = QLabel(
+            "Set which parity corresponds to the current week. "
+            "All other weeks are computed automatically. "
+            "You can also right-click a date in the calendar to mark its week."
+        )
+        hint.setWordWrap(True)
+        hint.setStyleSheet("color: #888;")
+        v.addWidget(hint)
+
+        row = QHBoxLayout()
+        row.addWidget(QLabel("This week is:"))
+        self._btn_even = QPushButton("Even")
+        self._btn_odd = QPushButton("Odd")
+        self._btn_even.setCheckable(True)
+        self._btn_odd.setCheckable(True)
+        self._parity_group = QButtonGroup(self)
+        self._parity_group.setExclusive(True)
+        self._parity_group.addButton(self._btn_even)
+        self._parity_group.addButton(self._btn_odd)
+        if self._selected_parity == "even":
+            self._btn_even.setChecked(True)
+        else:
+            self._btn_odd.setChecked(True)
+        self._btn_even.clicked.connect(lambda: self._select_parity("even"))
+        self._btn_odd.clicked.connect(lambda: self._select_parity("odd"))
+        row.addWidget(self._btn_even)
+        row.addWidget(self._btn_odd)
+        row.addStretch(1)
+        v.addLayout(row)
+
+        v.addStretch(1)
+        return page
+
+    def _select_parity(self, value: str) -> None:
+        self._selected_parity = value
+
     def _on_save(self) -> None:
         for key, row in self._rows.items():
             if not row.is_valid():
                 QMessageBox.warning(
                     self, "Invalid color",
-                    f"{_LABELS[key]}: RGB values must be integers 0-255."
+                    f"{_COLOR_LABELS[key]}: RGB values must be integers 0-255."
                 )
                 return
         for key, row in self._rows.items():
             self._palette.set(key, row.hex())
+        if self._selected_parity != self._initial_parity:
+            self._parity.set_anchor(date.today(), self._selected_parity)
         self.accept()

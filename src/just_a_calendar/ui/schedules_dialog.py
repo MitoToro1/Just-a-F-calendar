@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QScrollArea,
+    QSizePolicy,
     QSplitter,
     QStackedWidget,
     QTimeEdit,
@@ -147,7 +148,8 @@ class _SlotBlock(QPushButton):
         self.slot_id = slot.id
         self.setText(f"{slot.start_time}\n{slot.end_time}")
         self.setCheckable(True)
-        self.setMinimumHeight(52)
+        self.setFixedHeight(44)
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setStyleSheet(f"""
             QPushButton {{
@@ -188,6 +190,7 @@ class _DayCell(QWidget):
             item = self._layout.takeAt(0)
             w = item.widget()
             if w:
+                w.setParent(None)
                 w.deleteLater()
         self._layout.addStretch(1)
 
@@ -219,10 +222,8 @@ class SchedulesDialog(QDialog):
         ll.addWidget(self._schedules_list, 1)
         lb = QHBoxLayout()
         self._btn_new_sched = QPushButton("New...")
-        self._btn_edit_sched = QPushButton("Edit...")
         self._btn_del_sched = QPushButton("Delete")
         lb.addWidget(self._btn_new_sched)
-        lb.addWidget(self._btn_edit_sched)
         lb.addWidget(self._btn_del_sched)
         ll.addLayout(lb)
         splitter.addWidget(left)
@@ -254,7 +255,7 @@ class SchedulesDialog(QDialog):
         for i in range(7):
             cell = _DayCell(i)
             cell.setStyleSheet("background-color: rgba(255, 255, 255, 15); border-radius: 6px;")
-            cell.setMinimumWidth(100)
+            cell.setMinimumWidth(60)
             self._week_grid.addWidget(cell, 1, i)
             self._day_cells[i] = cell
         self._week_grid.setRowStretch(0, 0)
@@ -267,10 +268,8 @@ class SchedulesDialog(QDialog):
 
         sb = QHBoxLayout()
         self._btn_add_slot = QPushButton("Add slot...")
-        self._btn_edit_slot = QPushButton("Edit slot...")
         self._btn_del_slot = QPushButton("Delete slot")
         sb.addWidget(self._btn_add_slot)
-        sb.addWidget(self._btn_edit_slot)
         sb.addWidget(self._btn_del_slot)
         sb.addStretch(1)
         wl.addLayout(sb)
@@ -288,12 +287,10 @@ class SchedulesDialog(QDialog):
         layout.addLayout(bottom)
 
         self._btn_new_sched.clicked.connect(self._on_new_schedule)
-        self._btn_edit_sched.clicked.connect(self._on_edit_schedule)
         self._btn_del_sched.clicked.connect(self._on_delete_schedule)
         self._schedules_list.currentRowChanged.connect(self._on_schedule_selected)
         self._schedules_list.itemDoubleClicked.connect(lambda _i: self._on_edit_schedule())
         self._btn_add_slot.clicked.connect(self._on_add_slot)
-        self._btn_edit_slot.clicked.connect(self._on_edit_slot)
         self._btn_del_slot.clicked.connect(self._on_delete_slot)
         self._btn_close.clicked.connect(self.accept)
 
@@ -348,10 +345,10 @@ class SchedulesDialog(QDialog):
         sid = self._current_schedule_id()
         if sid is None:
             return
-        color = self._palette.get("schedule")
+        color = self._palette.get("events")
         for slot in self._svc.list_slots(sid):
             if 0 <= slot.weekday < 7:
-                block = _SlotBlock(slot, color)
+                block = _SlotBlock(slot, slot.color or color)
                 block.setChecked(slot.id == self._selected_slot_id)
                 block.clicked.connect(lambda _checked=False, slot_id=slot.id: self._on_slot_clicked(slot_id))
                 block.double_clicked.connect(self._on_slot_double_clicked)
@@ -410,6 +407,22 @@ class SchedulesDialog(QDialog):
     def _on_delete_slot(self) -> None:
         if self._selected_slot_id is None:
             QMessageBox.information(self, "No slot", "Select a slot first.")
+            return
+        sid = self._current_schedule_id()
+        if sid is None:
+            return
+        exists = False
+        for s in self._svc.list_slots(sid):
+            if s.id == self._selected_slot_id:
+                exists = True
+                break
+        if not exists:
+            self._selected_slot_id = None
+            self._reload_week()
+            QMessageBox.information(
+                self, "Slot not found",
+                "The selected slot no longer exists. Selection cleared."
+            )
             return
         ok = QMessageBox.question(
             self, "Delete slot", "Delete this slot?",
