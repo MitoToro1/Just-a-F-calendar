@@ -66,16 +66,50 @@ class SchedulesService:
     def delete(self, sid: int) -> None:
         self._r.delete(sid)
 
-    def add_slot(self, sid: int, *, weekday: int, start_time: str, end_time: str) -> ScheduleSlot:
+    def add_slot(
+        self,
+        sid: int,
+        *,
+        weekday: int,
+        start_time: str,
+        end_time: str,
+        title: str = "",
+        description: str = "",
+        reminder_amount: int = 0,
+        reminder_unit: str = "hours",
+        color: Optional[str] = None,
+    ) -> ScheduleSlot:
         self._validate_slot(weekday, start_time, end_time)
-        return self._r.add_slot(sid, weekday=weekday, start_time=start_time, end_time=end_time)
+        return self._r.add_slot(
+            sid, weekday=weekday, start_time=start_time, end_time=end_time,
+            title=title, description=description,
+            reminder_amount=reminder_amount, reminder_unit=reminder_unit,
+            color=color,
+        )
 
     def list_slots(self, sid: int):
         return self._r.list_slots(sid)
 
-    def update_slot(self, slot_id: int, *, weekday: int, start_time: str, end_time: str) -> ScheduleSlot:
+    def update_slot(
+        self,
+        slot_id: int,
+        *,
+        weekday: int,
+        start_time: str,
+        end_time: str,
+        title: str = "",
+        description: str = "",
+        reminder_amount: int = 0,
+        reminder_unit: str = "hours",
+        color: Optional[str] = None,
+    ) -> ScheduleSlot:
         self._validate_slot(weekday, start_time, end_time)
-        return self._r.update_slot(slot_id, weekday=weekday, start_time=start_time, end_time=end_time)
+        return self._r.update_slot(
+            slot_id, weekday=weekday, start_time=start_time, end_time=end_time,
+            title=title, description=description,
+            reminder_amount=reminder_amount, reminder_unit=reminder_unit,
+            color=color,
+        )
 
     def delete_slot(self, slot_id: int) -> None:
         self._r.delete_slot(slot_id)

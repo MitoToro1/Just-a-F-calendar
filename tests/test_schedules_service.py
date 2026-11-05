@@ -111,6 +111,37 @@ class SchedulesServiceTests(unittest.TestCase):
         tuesday = date(2026, 11, 3)
         self.assertEqual(self.svc.slots_for_day(tuesday, "even"), [])
 
+    def test_slot_with_event_fields(self):
+        s = self.svc.create(name="Uni")
+        slot = self.svc.add_slot(
+            s.id, weekday=0, start_time="09:00", end_time="10:30",
+            title="Math", description="Room 101",
+            reminder_amount=15, reminder_unit="days", color="#FF0000",
+        )
+        self.assertEqual(slot.title, "Math")
+        self.assertEqual(slot.description, "Room 101")
+        self.assertEqual(slot.reminder_amount, 15)
+        self.assertEqual(slot.reminder_unit, "days")
+        self.assertEqual(slot.color, "#FF0000")
+
+        updated = self.svc.update_slot(
+            slot.id, weekday=1, start_time="10:00", end_time="11:30",
+            title="Math (moved)", description="Room 202",
+            reminder_amount=30, reminder_unit="hours", color="#00FF00",
+        )
+        self.assertEqual(updated.weekday, 1)
+        self.assertEqual(updated.title, "Math (moved)")
+        self.assertEqual(updated.color, "#00FF00")
+        self.assertEqual(updated.reminder_unit, "hours")
+
+    def test_slot_with_invalid_reminder_unit_rejected(self):
+        s = self.svc.create(name="Uni")
+        with self.assertRaises(ValueError):
+            self.svc.add_slot(
+                s.id, weekday=0, start_time="09:00", end_time="10:00",
+                reminder_amount=1, reminder_unit="weeks",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -4,7 +4,9 @@ from __future__ import annotations
 from datetime import date, datetime
 
 from PySide6.QtCore import QDate, QDateTime, QTime, Qt
+from PySide6.QtGui import QColor, QIcon, QPixmap
 from PySide6.QtWidgets import (
+    QButtonGroup,
     QDialog,
     QHBoxLayout,
     QLabel,
@@ -19,20 +21,32 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from ..db.repositories import SettingsRepo
 from ..services.events import EventsService
 from ..services.palette import PaletteService
+from ..services.schedules import SchedulesService
 from .calendar import RoundedCalendar
 from .event_dialog import EventDialog
+from .schedules_dialog import SchedulesDialog
 from .settings_dialog import PaletteSettingsDialog
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, events_service: EventsService, palette_service: PaletteService) -> None:
+    def __init__(
+        self,
+        events_service: EventsService,
+        palette_service: PaletteService,
+        schedules_service: SchedulesService,
+        settings_repo: SettingsRepo,
+    ) -> None:
         super().__init__()
         self.setWindowTitle("Just a Calendar")
         self.resize(1000, 680)
         self._events = events_service
         self._palette = palette_service
+        self._schedules = schedules_service
+        self._settings = settings_repo
+        self._week_parity = self._settings.get("week_parity") or "even"
         self._build_ui()
         self._refresh_events_highlight()
         self._refresh_day_list()
@@ -48,11 +62,30 @@ class MainWindow(QMainWindow):
         toolbar.setContentsMargins(0, 0, 0, 0)
         self._btn_today = QPushButton("Today")
         self._btn_new = QPushButton("New event...")
+        self._btn_schedules = QPushButton("Schedules...")
         self._btn_settings = QPushButton("Settings...")
         toolbar.addWidget(self._btn_today)
         toolbar.addWidget(self._btn_new)
+        toolbar.addWidget(self._btn_schedules)
         toolbar.addWidget(self._btn_settings)
         toolbar.addStretch(1)
+
+        toolbar.addWidget(QLabel("Week:"))
+        self._btn_week_even = QPushButton("Even")
+        self._btn_week_odd = QPushButton("Odd")
+        self._btn_week_even.setCheckable(True)
+        self._btn_week_odd.setCheckable(True)
+        self._week_group = QButtonGroup(self)
+        self._week_group.setExclusive(True)
+        self._week_group.addButton(self._btn_week_even)
+        self._week_group.addButton(self._btn_week_odd)
+        if self._week_parity == "even":
+            self._btn_week_even.setChecked(True)
+        else:
+            self._btn_week_odd.setChecked(True)
+        toolbar.addWidget(self._btn_week_even)
+        toolbar.addWidget(self._btn_week_odd)
+
         outer.addLayout(toolbar)
 
         splitter = QSplitter(Qt.Horizontal)
@@ -106,7 +139,10 @@ class MainWindow(QMainWindow):
 
         self._btn_today.clicked.connect(self._on_today)
         self._btn_new.clicked.connect(self._on_new_event)
+        self._btn_schedules.clicked.connect(self._on_schedules)
         self._btn_settings.clicked.connect(self._on_settings)
+        self._btn_week_even.clicked.connect(lambda: self._set_week_parity("even"))
+        self._btn_week_odd.clicked.connect(lambda: self._set_week_parity("odd"))
         self._calendar.selectionChanged.connect(self._refresh_day_list)
         self._events_list.itemDoubleClicked.connect(self._on_item_activated)
         self._events_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -120,6 +156,18 @@ class MainWindow(QMainWindow):
         if dlg.exec() == QDialog.DialogCode.Accepted:
             self._refresh_events_highlight()
             self._refresh_day_list()
+
+    def _on_schedules(self) -> None:
+        dlg = SchedulesDialog(self._schedules, self._palette, self)
+        dlg.exec()
+        self._refresh_day_list()
+
+    def _set_week_parity(self, parity: str) -> None:
+        if parity == self._week_parity:
+            return
+        self._week_parity = parity
+        self._settings.set("week_parity", parity)
+        self._refresh_day_list()
 
     def _refresh_events_highlight(self) -> None:
         palette_color = self._palette.get("events")
@@ -142,14 +190,22 @@ class MainWindow(QMainWindow):
         day = date(qd.year(), qd.month(), qd.day())
         self._day_label.setText(day.strftime("%A, %d %B %Y"))
         self._events_list.clear()
-        items = self._events.list_for_day(day)
-        items.sort(key=lambda e: e.starts_at)
-        if not items:
+
+        event_items = self._events.list_for_day(day)
+        event_items.sort(key=lambda e: e.starts_at)
+        slot_items = self._schedules.slots_for_day(day, self._week_parity)
+        slot_items.sort(key=lambda s: s.start_time)
+
+        if not event_items and not slot_items:
             placeholder = QListWidgetItem("No events")
             placeholder.setFlags(Qt.NoItemFlags)
             self._events_list.addItem(placeholder)
             return
-        for e in items:
+
+        events_color = self._palette.get("events")
+        schedule_color = self._palette.get("schedule")
+
+        for e in event_items:
             try:
                 start = datetime.fromisoformat(e.starts_at)
                 end = datetime.fromisoformat(e.ends_at)
@@ -160,7 +216,20 @@ class MainWindow(QMainWindow):
                 text += f"\n{e.description}"
             item = QListWidgetItem(text)
             item.setData(Qt.ItemDataRole.UserRole, e.id)
+            item.setIcon(self._make_icon(e.color or events_color))
             self._events_list.addItem(item)
+
+        for slot in slot_items:
+            sched = self._schedules.get(slot.schedule_id)
+            sched_name = sched.name if sched else "?"
+            item = QListWidgetItem(f"{slot.start_time}-{slot.end_time}  {sched_name}")
+            item.setIcon(self._make_icon(schedule_color))
+            self._events_list.addItem(item)
+
+    def _make_icon(self, hex_color: str) -> QIcon:
+        pix = QPixmap(14, 14)
+        pix.fill(QColor(hex_color))
+        return QIcon(pix)
 
     def _selected_date(self) -> date:
         qd = self._calendar.selectedDate()

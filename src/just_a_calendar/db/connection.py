@@ -27,4 +27,25 @@ def connect(db_path: str | Path) -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.executescript(_read_schema())
+    _apply_migrations(conn)
     return conn
+
+
+def _apply_migrations(conn: sqlite3.Connection) -> None:
+    """Add columns to legacy tables created before the current schema.
+
+    Idempotent: missing columns are added with safe defaults, existing
+    columns are left untouched, existing data is preserved.
+    """
+    cur = conn.execute("PRAGMA table_info(schedule_slots)")
+    cols = {row[1] for row in cur.fetchall()}
+    additions = [
+        ("title", "TEXT NOT NULL DEFAULT ''"),
+        ("description", "TEXT NOT NULL DEFAULT ''"),
+        ("reminder_amount", "INTEGER NOT NULL DEFAULT 0"),
+        ("reminder_unit", "TEXT NOT NULL DEFAULT 'hours'"),
+        ("color", "TEXT"),
+    ]
+    for name, decl in additions:
+        if name not in cols:
+            conn.execute(f"ALTER TABLE schedule_slots ADD COLUMN {name} {decl}")

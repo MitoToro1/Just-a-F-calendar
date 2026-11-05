@@ -36,6 +36,11 @@ class ScheduleSlot:
     weekday: int
     start_time: str
     end_time: str
+    title: str = ""
+    description: str = ""
+    reminder_amount: int = 0
+    reminder_unit: str = "hours"
+    color: Optional[str] = None
 
 
 @dataclass

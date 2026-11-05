@@ -80,6 +80,11 @@ def _row_to_slot(row: sqlite3.Row) -> ScheduleSlot:
         weekday=row["weekday"],
         start_time=row["start_time"],
         end_time=row["end_time"],
+        title=row["title"],
+        description=row["description"],
+        reminder_amount=row["reminder_amount"],
+        reminder_unit=row["reminder_unit"],
+        color=row["color"],
     )
 
 
@@ -207,13 +212,30 @@ class SchedulesRepo:
             raise KeyError(f"Schedule {sid} not found")
         return self.get(sid)
 
-    def update_slot(self, slot_id: int, *, weekday: int, start_time: str, end_time: str) -> ScheduleSlot:
+    def update_slot(
+        self,
+        slot_id: int,
+        *,
+        weekday: int,
+        start_time: str,
+        end_time: str,
+        title: str = "",
+        description: str = "",
+        reminder_amount: int = 0,
+        reminder_unit: str = "hours",
+        color: Optional[str] = None,
+    ) -> ScheduleSlot:
         _validate_weekday(weekday)
         _validate_hhmm(start_time, "start_time")
         _validate_hhmm(end_time, "end_time")
+        _validate_unit(reminder_unit)
+        _validate_amount(reminder_amount)
         cur = self.conn.execute(
-            "UPDATE schedule_slots SET weekday=?, start_time=?, end_time=? WHERE id=?",
-            (weekday, start_time, end_time, slot_id),
+            "UPDATE schedule_slots SET weekday=?, start_time=?, end_time=?, "
+            "title=?, description=?, reminder_amount=?, reminder_unit=?, color=? "
+            "WHERE id=?",
+            (weekday, start_time, end_time,
+             title, description, reminder_amount, reminder_unit, color, slot_id),
         )
         if cur.rowcount == 0:
             raise KeyError(f"Slot {slot_id} not found")
@@ -225,15 +247,30 @@ class SchedulesRepo:
         self.conn.execute("DELETE FROM schedules WHERE id=?", (sid,))
 
     def add_slot(
-        self, sid: int, *, weekday: int, start_time: str, end_time: str
+        self,
+        sid: int,
+        *,
+        weekday: int,
+        start_time: str,
+        end_time: str,
+        title: str = "",
+        description: str = "",
+        reminder_amount: int = 0,
+        reminder_unit: str = "hours",
+        color: Optional[str] = None,
     ) -> ScheduleSlot:
         _validate_weekday(weekday)
         _validate_hhmm(start_time, "start_time")
         _validate_hhmm(end_time, "end_time")
+        _validate_unit(reminder_unit)
+        _validate_amount(reminder_amount)
         cur = self.conn.execute(
             "INSERT INTO schedule_slots "
-            "(schedule_id, weekday, start_time, end_time) VALUES (?, ?, ?, ?)",
-            (sid, weekday, start_time, end_time),
+            "(schedule_id, weekday, start_time, end_time, "
+            " title, description, reminder_amount, reminder_unit, color) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (sid, weekday, start_time, end_time,
+             title, description, reminder_amount, reminder_unit, color),
         )
         row = self.conn.execute(
             "SELECT * FROM schedule_slots WHERE id=?", (cur.lastrowid,)

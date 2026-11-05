@@ -28,11 +28,17 @@ CREATE TABLE IF NOT EXISTS schedules (
 );
 
 CREATE TABLE IF NOT EXISTS schedule_slots (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    schedule_id INTEGER NOT NULL REFERENCES schedules(id) ON DELETE CASCADE,
-    weekday     INTEGER NOT NULL CHECK (weekday BETWEEN 0 AND 6),
-    start_time  TEXT NOT NULL,
-    end_time    TEXT NOT NULL
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    schedule_id       INTEGER NOT NULL REFERENCES schedules(id) ON DELETE CASCADE,
+    weekday           INTEGER NOT NULL CHECK (weekday BETWEEN 0 AND 6),
+    start_time        TEXT NOT NULL,
+    end_time          TEXT NOT NULL,
+    title             TEXT NOT NULL DEFAULT '',
+    description       TEXT NOT NULL DEFAULT '',
+    reminder_amount   INTEGER NOT NULL DEFAULT 0,
+    reminder_unit     TEXT NOT NULL DEFAULT 'hours'
+                          CHECK (reminder_unit IN ('hours','days','months','years')),
+    color             TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_schedule_slots_schedule
