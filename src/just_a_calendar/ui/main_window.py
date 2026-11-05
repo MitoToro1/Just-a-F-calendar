@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from typing import Optional
 
 from PySide6.QtCore import QDate, QDateTime, QTime, Qt
 from PySide6.QtGui import QColor, QIcon, QKeySequence, QPixmap, QShortcut
@@ -29,6 +30,7 @@ from ..services.sleep import SleepService
 from .calendar import RoundedCalendar
 from .event_dialog import EventDialog
 from .free_time_dialog import FreeTimeDialog
+from .tray import TrayIcon
 from .schedules_dialog import SchedulesDialog
 from .settings_dialog import SettingsDialog
 
@@ -42,6 +44,7 @@ class MainWindow(QMainWindow):
         parity_service: ParityService,
         sleep_service: SleepService,
         free_time_service: FreeTimeService,
+        tray_icon: Optional[TrayIcon] = None,
     ) -> None:
         super().__init__()
         self.setWindowTitle("Just a Calendar")
@@ -52,6 +55,7 @@ class MainWindow(QMainWindow):
         self._parity = parity_service
         self._sleep = sleep_service
         self._free_time = free_time_service
+        self._tray = tray_icon
         self._schedules_dialog = None
         self._settings_dialog = None
         self._free_time_dialog = None
@@ -192,6 +196,8 @@ class MainWindow(QMainWindow):
         if result == QDialog.DialogCode.Accepted:
             self._refresh_events_highlight()
             self._refresh_day_list()
+            if self._tray is not None:
+                self._tray.refresh_color()
 
     def _on_schedules(self) -> None:
         already_open = self._schedules_dialog is not None
@@ -223,6 +229,19 @@ class MainWindow(QMainWindow):
         if dlg is not self._free_time_dialog:
             return
         self._free_time_dialog = None
+
+    def closeEvent(self, event) -> None:
+        if self._tray is not None and self._tray.isVisible():
+            event.ignore()
+            self.hide()
+            self._tray.show_once_hint()
+            return
+        super().closeEvent(event)
+
+    def show_from_tray(self) -> None:
+        self.show()
+        self.raise_()
+        self.activateWindow()
 
     def _on_calendar_context_menu(self, pos) -> None:
         qd = self._calendar.selectedDate()

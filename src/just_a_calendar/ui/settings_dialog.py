@@ -30,11 +30,10 @@ from ..services.palette import DEFAULT_PALETTE, PaletteService
 from ..services.parity import ParityService
 from ..services.sleep import SleepService
 
-_COLOR_ORDER = ("events", "sleep", "free_time")
+_COLOR_ORDER = ("events", "sleep")
 _COLOR_LABELS = {
-    "events":    "Events' default color",
-    "sleep":     "Sleep",
-    "free_time": "Free time",
+    "events": "Events' default color",
+    "sleep":  "Sleep",
 }
 
 _WEEKDAYS_FULL = (

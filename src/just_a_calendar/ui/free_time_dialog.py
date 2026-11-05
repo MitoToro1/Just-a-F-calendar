@@ -271,7 +271,7 @@ class FreeTimeDialog(QDialog):
         self._day_label.setText(f"{parity.capitalize()} Week, {day.strftime('%A, %d %B %Y')}")
         self._list.clear()
 
-        free_color = self._palette.get("free_time")
+        free_color = "#27AE60"
         intervals = self._free.free_intervals_for_day(day, parity, include_sleep=True)
         if not intervals:
             placeholder = QListWidgetItem("No free time")

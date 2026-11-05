@@ -14,13 +14,17 @@ from .services.palette import PaletteService
 from .services.parity import ParityService
 from .services.schedules import SchedulesService
 from .services.sleep import SleepService
+from PySide6.QtWidgets import QSystemTrayIcon
+
 from .ui.main_window import MainWindow
 from .ui.onboarding_dialog import SleepOnboardingDialog
+from .ui.tray import TrayIcon
 
 
 def run() -> int:
     app = QApplication.instance() or QApplication(sys.argv)
     app.setApplicationName("Just a Calendar")
+    app.setQuitOnLastWindowClosed(False)
     conn = connect(db_path())
     settings_repo = SettingsRepo(conn)
     events_svc = EventsService(EventsRepo(conn))
@@ -35,6 +39,17 @@ def run() -> int:
         dlg.exec()
         sleep_svc.ensure_default_if_missing()
 
-    window = MainWindow(events_svc, palette_svc, schedules_svc, parity_svc, sleep_svc, free_time_svc)
+    tray = None
+    if QSystemTrayIcon.isSystemTrayAvailable():
+        tray = TrayIcon(settings_repo, palette_svc)
+        tray.show()
+
+    window = MainWindow(
+        events_svc, palette_svc, schedules_svc, parity_svc,
+        sleep_svc, free_time_svc, tray,
+    )
+    if tray is not None:
+        tray.open_requested.connect(window.show_from_tray)
+        tray.quit_requested.connect(app.quit)
     window.show()
     return app.exec()
