@@ -266,13 +266,14 @@ class MainWindow(QMainWindow):
         slot_items = self._schedules.slots_for_day(day, parity)
         slot_items.sort(key=lambda s: s.start_time)
 
-        if not event_items and not slot_items:
-            placeholder = QListWidgetItem("No events")
-            placeholder.setFlags(Qt.NoItemFlags)
-            self._events_list.addItem(placeholder)
-            return
-
         events_color = self._palette.get("events")
+        sleep_color = self._palette.get("sleep")
+
+        sleep_start, sleep_end = self._sleep.resolve_for_day(day)
+        sleep_item = QListWidgetItem(f"{sleep_start}-{sleep_end}  Sleep")
+        sleep_item.setIcon(self._make_icon(sleep_color))
+        sleep_item.setFlags(Qt.ItemFlag.ItemIsEnabled)
+        self._events_list.addItem(sleep_item)
 
         for e in event_items:
             try:
