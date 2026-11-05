@@ -4,13 +4,25 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "just-a-calendar"
-version = "0.1.0"
+version = "1.0.0"
 description = "Local Windows desktop calendar with schedules, reminders, and free-time view"
+readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"
+dependencies = [
+    "PySide6>=6.8",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pyinstaller>=6.0",
+]
 
 [tool.setuptools]
 package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+just_a_calendar = ["db/schema.sql"]
